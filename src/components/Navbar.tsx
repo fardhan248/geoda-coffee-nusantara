@@ -34,7 +34,7 @@ const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-              <img src={logo} alt="Logo"/>
+              <img src={logo} alt="Logo" className="w-full h-full object-contain"/>
               {/*<span className="text-primary-foreground font-bold text-lg">G</span>*/}
             </div>
             <span className="font-display font-semibold text-xl text-foreground">
