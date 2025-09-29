@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Menu, X, ShoppingCart, User, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import logo from "./assets/logo_geoda.png";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,8 +33,9 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 hero-gradient rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">G</span>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+              <img src={logo} alt="Logo"/>
+              {/*<span className="text-primary-foreground font-bold text-lg">G</span>*/}
             </div>
             <span className="font-display font-semibold text-xl text-foreground">
               Geoda Coffee
