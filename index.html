@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>geoda-coffee-nusantara</title>
+    <title>Geoda Coffee</title>
     <meta name="description" content="Lovable Generated Project" />
     <meta name="author" content="Lovable" />
 
@@ -15,10 +15,26 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <!-- n8n Chat Widget CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <div id="chat"></div>
+    
+    <!-- n8n Chat Widget -->
+    <script type="module">
+      import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+      createChat({
+        webhookUrl: 'https://n8n-neqt0kg4kbsi.n8x.my.id/webhook/1f91c23f-0854-439b-9ed9-1f02ddab0a0a/chat',
+        initialMessages: [
+  "👋 Halo, saya GeoBot, asisten digital Geoda Coffee.\nSaya siap membantu kamu untuk:\n- Menjelaskan tentang Geoda Coffee ☕\n- Melihat dan memilih produk kopi kami 🌱\n- Membantu cek status pesanan kamu 📦\n\nSilakan ketik pertanyaan kamu."
+]
+      });
+    </script>
   </body>
 </html>
