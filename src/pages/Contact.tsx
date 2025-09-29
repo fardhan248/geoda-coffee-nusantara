@@ -4,8 +4,16 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Mail, Phone, MapPin, Clock, MessageCircle, HelpCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, MessageCircle, HelpCircle, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { z } from 'zod';
+
+const contactSchema = z.object({
+  name: z.string().trim().min(2, { message: "Nama minimal 2 karakter" }).max(100, { message: "Nama terlalu panjang" }),
+  email: z.string().trim().email({ message: "Email tidak valid" }).max(255, { message: "Email terlalu panjang" }),
+  subject: z.string().trim().min(5, { message: "Subjek minimal 5 karakter" }).max(200, { message: "Subjek terlalu panjang" }),
+  message: z.string().trim().min(10, { message: "Pesan minimal 10 karakter" }).max(1000, { message: "Pesan terlalu panjang" })
+});
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -14,23 +22,56 @@ const Contact = () => {
     subject: '',
     message: ''
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  const validateForm = () => {
+    try {
+      contactSchema.parse(formData);
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        error.issues.forEach((err) => {
+          if (err.path[0]) {
+            newErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) return;
+    
     setIsSubmitting(true);
 
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      // Simulate form submission
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-    toast({
-      title: "Pesan Terkirim!",
-      description: "Terima kasih atas pesan Anda. Kami akan merespons dalam 1x24 jam.",
-    });
+      toast({
+        title: "Pesan Terkirim!",
+        description: "Terima kasih atas pesan Anda. Kami akan merespons dalam 1x24 jam.",
+      });
 
-    setFormData({ name: '', email: '', subject: '', message: '' });
-    setIsSubmitting(false);
+      setFormData({ name: '', email: '', subject: '', message: '' });
+      setErrors({});
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal mengirim pesan. Silakan coba lagi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -121,12 +162,13 @@ const Contact = () => {
                       id="name"
                       name="name"
                       type="text"
-                      required
                       value={formData.name}
                       onChange={handleInputChange}
                       placeholder="Masukkan nama lengkap"
-                      className="mt-1"
+                      className={`mt-1 ${errors.name ? 'border-destructive' : ''}`}
+                      disabled={isSubmitting}
                     />
+                    {errors.name && <p className="text-sm text-destructive mt-1">{errors.name}</p>}
                   </div>
                   <div>
                     <Label htmlFor="email">Email</Label>
@@ -134,12 +176,13 @@ const Contact = () => {
                       id="email"
                       name="email"
                       type="email"
-                      required
                       value={formData.email}
                       onChange={handleInputChange}
                       placeholder="nama@email.com"
-                      className="mt-1"
+                      className={`mt-1 ${errors.email ? 'border-destructive' : ''}`}
+                      disabled={isSubmitting}
                     />
+                    {errors.email && <p className="text-sm text-destructive mt-1">{errors.email}</p>}
                   </div>
                 </div>
                 
@@ -149,12 +192,13 @@ const Contact = () => {
                     id="subject"
                     name="subject"
                     type="text"
-                    required
                     value={formData.subject}
                     onChange={handleInputChange}
                     placeholder="Subjek pesan"
-                    className="mt-1"
+                    className={`mt-1 ${errors.subject ? 'border-destructive' : ''}`}
+                    disabled={isSubmitting}
                   />
+                  {errors.subject && <p className="text-sm text-destructive mt-1">{errors.subject}</p>}
                 </div>
 
                 <div>
@@ -162,13 +206,14 @@ const Contact = () => {
                   <Textarea
                     id="message"
                     name="message"
-                    required
                     value={formData.message}
                     onChange={handleInputChange}
                     placeholder="Tulis pesan Anda di sini..."
                     rows={6}
-                    className="mt-1"
+                    className={`mt-1 ${errors.message ? 'border-destructive' : ''}`}
+                    disabled={isSubmitting}
                   />
+                  {errors.message && <p className="text-sm text-destructive mt-1">{errors.message}</p>}
                 </div>
 
                 <Button 
@@ -178,7 +223,17 @@ const Contact = () => {
                   className="w-full"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Mengirim...' : 'Kirim Pesan'}
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
+                      Mengirim...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Kirim Pesan
+                    </>
+                  )}
                 </Button>
               </form>
             </Card>

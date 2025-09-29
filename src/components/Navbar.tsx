@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, ShoppingCart, User } from 'lucide-react';
+import { Menu, X, ShoppingCart, User, LogIn, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   const navigation = [
     { name: 'Beranda', href: '/' },
@@ -17,6 +20,11 @@ const Navbar = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border shadow-warm">
@@ -56,12 +64,37 @@ const Navbar = () => {
             <Button variant="ghost" size="icon">
               <ShoppingCart className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon">
-              <User className="h-5 w-5" />
-            </Button>
-            <Button variant="hero" size="sm">
-              Belanja Sekarang
-            </Button>
+            
+            {user ? (
+              <>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => navigate('/profile')}
+                >
+                  <User className="h-5 w-5" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Keluar
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="hero" 
+                size="sm"
+                onClick={() => navigate('/auth')}
+                className="flex items-center gap-2"
+              >
+                <LogIn className="h-4 w-4" />
+                Masuk
+              </Button>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -103,12 +136,46 @@ const Navbar = () => {
               <Button variant="ghost" size="icon">
                 <ShoppingCart className="h-5 w-5" />
               </Button>
-              <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
-              </Button>
-              <Button variant="hero" size="sm" className="ml-2">
-                Belanja Sekarang
-              </Button>
+              
+              {user ? (
+                <>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => {
+                      navigate('/profile');
+                      setIsOpen(false);
+                    }}
+                  >
+                    <User className="h-5 w-5" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      handleSignOut();
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-2 ml-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Keluar
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  variant="hero" 
+                  size="sm" 
+                  className="ml-2 flex items-center gap-2"
+                  onClick={() => {
+                    navigate('/auth');
+                    setIsOpen(false);
+                  }}
+                >
+                  <LogIn className="h-4 w-4" />
+                  Masuk
+                </Button>
+              )}
             </div>
           </div>
         </div>
