@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Menu, X, ShoppingCart, User, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import logo from "./assets/logo_geoda.png";
+import logo from "@/assets/logo_geoda.png";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
