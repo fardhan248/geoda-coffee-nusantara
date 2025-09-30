@@ -9,17 +9,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/hooks/useCart';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 type Product = Tables<'products'>;
+type ProductVariant = Tables<'product_variants'>;
+
+type ProductWithVariants = Product & {
+  variants: ProductVariant[];
+};
 
 const Shop = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductWithVariants[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<ProductWithVariants[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roastFilter, setRoastFilter] = useState<string>('all');
   const [priceFilter, setPriceFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<boolean>(false);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const { addToCart, loading: cartLoading } = useCart();
 
@@ -33,15 +41,38 @@ const Shop = () => {
 
   const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (productsError) throw productsError;
+
+      // Fetch variants for all products
+      const { data: variantsData, error: variantsError } = await supabase
+        .from('product_variants')
+        .select('*');
+
+      if (variantsError) throw variantsError;
+
+      // Combine products with their variants
+      const productsWithVariants: ProductWithVariants[] = (productsData || []).map(product => ({
+        ...product,
+        variants: (variantsData || []).filter(variant => variant.product_id === product.id)
+      }));
+
+      setProducts(productsWithVariants);
+
+      // Initialize selected variants (first variant for each product)
+      const initialVariants: Record<string, string> = {};
+      productsWithVariants.forEach(product => {
+        if (product.variants.length > 0) {
+          initialVariants[product.id] = product.variants[0].id;
+        }
+      });
+      setSelectedVariants(initialVariants);
       
-      setProducts(data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast({
@@ -116,6 +147,24 @@ const Shop = () => {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getProductPrice = (product: ProductWithVariants) => {
+    const selectedVariantId = selectedVariants[product.id];
+    if (selectedVariantId) {
+      const variant = product.variants.find(v => v.id === selectedVariantId);
+      if (variant) {
+        return variant.price_variant;
+      }
+    }
+    return product.price;
+  };
+
+  const handleVariantChange = (productId: string, variantId: string) => {
+    setSelectedVariants(prev => ({
+      ...prev,
+      [productId]: variantId
+    }));
   };
 
   if (loading) {
@@ -262,10 +311,38 @@ const Shop = () => {
                           {product.description}
                         </p>
                       )}
+
+                      {/* Variants Selection */}
+                      {product.variants.length > 0 && (
+                        <div className="mb-4 space-y-2">
+                          <Label className="text-xs font-medium text-muted-foreground">Pilih Berat:</Label>
+                          <RadioGroup 
+                            value={selectedVariants[product.id] || ''} 
+                            onValueChange={(value) => handleVariantChange(product.id, value)}
+                            className="flex flex-wrap gap-2"
+                          >
+                            {product.variants.map((variant) => (
+                              <div key={variant.id} className="flex items-center">
+                                <RadioGroupItem 
+                                  value={variant.id} 
+                                  id={`variant-${variant.id}`} 
+                                  className="sr-only peer"
+                                />
+                                <Label
+                                  htmlFor={`variant-${variant.id}`}
+                                  className="flex items-center justify-center px-3 py-1.5 text-xs font-medium border rounded-md cursor-pointer peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground peer-data-[state=checked]:border-primary hover:bg-muted transition-smooth"
+                                >
+                                  {variant.weight}g
+                                </Label>
+                              </div>
+                            ))}
+                          </RadioGroup>
+                        </div>
+                      )}
                       
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-xl text-primary">
-                          {formatPrice(product.price)}
+                          {formatPrice(getProductPrice(product))}
                         </span>
                         <Button 
                           variant="hero" 
