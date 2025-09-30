@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Menu, X, ShoppingCart, User, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCart } from '@/hooks/useCart';
 import logo from "@/assets/logo_geoda.png";
 
 const Navbar = () => {
@@ -10,6 +12,7 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { cartCount } = useCart();
 
   const navigation = [
     { name: 'Beranda', href: '/' },
@@ -17,6 +20,7 @@ const Navbar = () => {
     { name: 'Tentang Kami', href: '/about' },
     { name: 'Traceability', href: '/traceability' },
     { name: 'Sustainability', href: '/sustainability' },
+    { name: 'Testimoni', href: '/testimonials' },
     { name: 'Kontak', href: '/contact' },
   ];
 
@@ -63,8 +67,21 @@ const Navbar = () => {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" size="icon">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="relative"
+              onClick={() => navigate('/cart')}
+            >
               <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <Badge 
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                  variant="default"
+                >
+                  {cartCount}
+                </Badge>
+              )}
             </Button>
             
             {user ? (
@@ -135,8 +152,24 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="flex items-center space-x-2 px-3 py-4">
-              <Button variant="ghost" size="icon">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="relative"
+                onClick={() => {
+                  navigate('/cart');
+                  setIsOpen(false);
+                }}
+              >
                 <ShoppingCart className="h-5 w-5" />
+                {cartCount > 0 && (
+                  <Badge 
+                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                    variant="default"
+                  >
+                    {cartCount}
+                  </Badge>
+                )}
               </Button>
               
               {user ? (

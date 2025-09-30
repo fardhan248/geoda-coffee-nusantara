@@ -8,6 +8,7 @@ import { Filter, Search, ShoppingCart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/hooks/useCart';
 
 type Product = Tables<'products'>;
 
@@ -18,7 +19,9 @@ const Shop = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roastFilter, setRoastFilter] = useState<string>('all');
   const [priceFilter, setPriceFilter] = useState<string>('all');
+  const [stockFilter, setStockFilter] = useState<boolean>(false);
   const { toast } = useToast();
+  const { addToCart, loading: cartLoading } = useCart();
 
   useEffect(() => {
     fetchProducts();
@@ -26,7 +29,7 @@ const Shop = () => {
 
   useEffect(() => {
     filterProducts();
-  }, [products, searchTerm, roastFilter, priceFilter]);
+  }, [products, searchTerm, roastFilter, priceFilter, stockFilter]);
 
   const fetchProducts = async () => {
     try {
@@ -82,7 +85,16 @@ const Shop = () => {
       }
     }
 
+    // Stock filter
+    if (stockFilter) {
+      filtered = filtered.filter(product => product.stock_quantity && product.stock_quantity > 0);
+    }
+
     setFilteredProducts(filtered);
+  };
+
+  const handleAddToCart = async (productId: string) => {
+    await addToCart(productId);
   };
 
   const formatPrice = (price: number) => {
@@ -145,7 +157,7 @@ const Shop = () => {
               />
             </div>
             
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <Select value={roastFilter} onValueChange={setRoastFilter}>
                 <SelectTrigger className="w-40">
                   <Filter className="h-4 w-4 mr-2" />
@@ -170,6 +182,15 @@ const Shop = () => {
                   <SelectItem value="over100">&gt; Rp 100.000</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Button
+                variant={stockFilter ? "default" : "outline"}
+                onClick={() => setStockFilter(!stockFilter)}
+                className="gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                {stockFilter ? "Ada Stok" : "Semua Stok"}
+              </Button>
             </div>
           </div>
         </div>
@@ -249,7 +270,8 @@ const Shop = () => {
                         <Button 
                           variant="hero" 
                           size="sm"
-                          disabled={product.stock_quantity === 0}
+                          disabled={product.stock_quantity === 0 || cartLoading}
+                          onClick={() => handleAddToCart(product.id)}
                         >
                           <ShoppingCart className="h-4 w-4 mr-2" />
                           Tambah
