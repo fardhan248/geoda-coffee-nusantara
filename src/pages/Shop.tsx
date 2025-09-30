@@ -107,11 +107,11 @@ const Shop = () => {
 
   const getRoastBadgeColor = (roastType: string | null) => {
     switch (roastType) {
-      case 'Light':
+      case 'light':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Medium':
+      case 'medium':
         return 'bg-orange-100 text-orange-800';
-      case 'Dark':
+      case 'dark':
         return 'bg-gray-800 text-gray-100';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -165,9 +165,9 @@ const Shop = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Roast</SelectItem>
-                  <SelectItem value="Light">Light Roast</SelectItem>
-                  <SelectItem value="Medium">Medium Roast</SelectItem>
-                  <SelectItem value="Dark">Dark Roast</SelectItem>
+                  <SelectItem value="light">Light Roast</SelectItem>
+                  <SelectItem value="medium">Medium Roast</SelectItem>
+                  <SelectItem value="dark">Dark Roast</SelectItem>
                 </SelectContent>
               </Select>
 
