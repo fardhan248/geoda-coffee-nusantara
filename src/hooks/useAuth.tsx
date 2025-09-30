@@ -56,31 +56,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            full_name: fullName
+            full_name: fullName || email
           }
         }
       });
 
       if (error) {
+        // Handle specific error cases
+        let errorMessage = error.message;
+        
+        if (error.message.includes('User already registered')) {
+          errorMessage = 'Email sudah terdaftar. Silakan gunakan email lain atau login.';
+        }
+        
         toast({
           title: "Error",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "Berhasil",
-          description: "Akun berhasil dibuat! Periksa email Anda untuk verifikasi.",
-        });
+        return { error };
       }
 
-      return { error };
+      toast({
+        title: "Berhasil",
+        description: "Akun berhasil dibuat! Periksa email Anda untuk verifikasi.",
+      });
+
+      return { error: null };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan tidak terduga';
       toast({

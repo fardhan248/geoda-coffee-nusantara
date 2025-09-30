@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Mail, Phone, MapPin, Clock, MessageCircle, HelpCircle, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 
 const contactSchema = z.object({
   name: z.string().trim().min(2, { message: "Nama minimal 2 karakter" }).max(100, { message: "Nama terlalu panjang" }),
@@ -53,20 +54,29 @@ const Contact = () => {
     setIsSubmitting(true);
 
     try {
-      // Simulate form submission
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase
+        .from('contacts')
+        .insert({
+          full_name: formData.name,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message
+        });
+
+      if (error) throw error;
 
       toast({
         title: "Pesan Terkirim!",
-        description: "Terima kasih atas pesan Anda. Kami akan merespons dalam 1x24 jam.",
+        description: "Terima kasih! Pesan kamu sudah terkirim. Tim Geoda Coffee akan segera menghubungi kamu.",
       });
 
       setFormData({ name: '', email: '', subject: '', message: '' });
       setErrors({});
     } catch (error) {
+      console.error('Error submitting contact form:', error);
       toast({
         title: "Error",
-        description: "Gagal mengirim pesan. Silakan coba lagi.",
+        description: "Maaf, terjadi kendala saat mengirim pesan. Silakan coba lagi nanti.",
         variant: "destructive",
       });
     } finally {
