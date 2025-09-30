@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Coffee, Instagram, Facebook, Twitter, Mail, Phone, MapPin } from 'lucide-react';
+import logo from "@/assets/logo_geoda.png";
 
 const Footer = () => {
   return (
@@ -9,8 +10,8 @@ const Footer = () => {
           {/* Brand Section */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gold rounded-lg flex items-center justify-center">
-                <Coffee className="h-5 w-5 text-gold-foreground" />
+              <div className="w-8 h-8 flex items-center justify-center">
+                <img src={logo} alt="Logo" className="w-full h-full object-contain"/>
               </div>
               <span className="font-display font-semibold text-xl">
                 Geoda Coffee
