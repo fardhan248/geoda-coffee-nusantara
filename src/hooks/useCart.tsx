@@ -41,7 +41,7 @@ export const useCart = () => {
     }
   };
 
-  const addToCart = async (productId: string) => {
+  const addToCart = async (productId: string, variantId?: string) => {
     if (!user) {
       toast({
         title: "Login Diperlukan",
@@ -71,13 +71,20 @@ export const useCart = () => {
         cart = newCart;
       }
 
-      // Check if item already exists in cart
-      const { data: existingItem } = await supabase
+      // Check if item with same variant already exists in cart
+      let existingItemQuery = supabase
         .from('cart_items')
         .select('id, quantity')
         .eq('cart_id', cart.id)
-        .eq('product_id', productId)
-        .single();
+        .eq('product_id', productId);
+
+      if (variantId) {
+        existingItemQuery = existingItemQuery.eq('variant_id', variantId);
+      } else {
+        existingItemQuery = existingItemQuery.is('variant_id', null);
+      }
+
+      const { data: existingItem } = await existingItemQuery.maybeSingle();
 
       if (existingItem) {
         // Update quantity
@@ -94,6 +101,7 @@ export const useCart = () => {
           .insert({
             cart_id: cart.id,
             product_id: productId,
+            variant_id: variantId || null,
             quantity: 1
           });
 

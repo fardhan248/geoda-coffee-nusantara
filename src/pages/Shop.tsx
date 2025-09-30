@@ -125,7 +125,8 @@ const Shop = () => {
   };
 
   const handleAddToCart = async (productId: string) => {
-    await addToCart(productId);
+    const variantId = selectedVariants[productId];
+    await addToCart(productId, variantId);
   };
 
   const formatPrice = (price: number) => {

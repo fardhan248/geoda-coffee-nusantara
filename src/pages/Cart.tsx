@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 interface CartItem {
   id: string;
   quantity: number;
+  variant_id: string | null;
   product: {
     id: string;
     name: string;
@@ -30,6 +31,11 @@ interface CartItem {
     roast_type: string | null;
     stock_quantity: number;
   };
+  variant?: {
+    id: string;
+    weight: number;
+    price_variant: number;
+  } | null;
 }
 
 const Cart = () => {
@@ -88,6 +94,7 @@ const Cart = () => {
           .select(`
             id,
             quantity,
+            variant_id,
             product:products (
               id,
               name,
@@ -95,6 +102,11 @@ const Cart = () => {
               image_url,
               roast_type,
               stock_quantity
+            ),
+            variant:product_variants (
+              id,
+              weight,
+              price_variant
             )
           `)
           .eq('cart_id', cart.id);
@@ -177,7 +189,14 @@ const Cart = () => {
   };
 
   const calculateTotal = () => {
-    return cartItems.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+    return cartItems.reduce((total, item) => {
+      const price = item.variant ? item.variant.price_variant : item.product.price;
+      return total + (price * item.quantity);
+    }, 0);
+  };
+
+  const getItemPrice = (item: CartItem) => {
+    return item.variant ? item.variant.price_variant : item.product.price;
   };
 
   const handleCheckoutClick = () => {
@@ -230,7 +249,7 @@ const Cart = () => {
         order_id: orderData.id,
         product_id: item.product.id,
         quantity: item.quantity,
-        price_at_purchase: item.product.price
+        price_at_purchase: getItemPrice(item)
       }));
 
       const { error: itemsError } = await supabase
@@ -333,27 +352,37 @@ const Cart = () => {
                     )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-display font-semibold text-lg">
-                          {item.product.name}
-                        </h3>
-                        {item.product.roast_type && (
-                          <p className="text-sm text-muted-foreground">
-                            {item.product.roast_type} Roast
-                          </p>
-                        )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-display font-semibold text-lg">
+                            {item.product.name}
+                          </h3>
+                          <div className="flex gap-2 items-center">
+                            {item.product.roast_type && (
+                              <p className="text-sm text-muted-foreground">
+                                {item.product.roast_type} Roast
+                              </p>
+                            )}
+                            {item.variant && (
+                              <>
+                                {item.product.roast_type && <span className="text-sm text-muted-foreground">•</span>}
+                                <p className="text-sm text-muted-foreground">
+                                  {item.variant.weight}g
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeItem(item.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItem(item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -381,10 +410,10 @@ const Cart = () => {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-lg text-primary">
-                          {formatPrice(item.product.price * item.quantity)}
+                          {formatPrice(getItemPrice(item) * item.quantity)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatPrice(item.product.price)} / item
+                          {formatPrice(getItemPrice(item))} / item
                         </p>
                       </div>
                     </div>
@@ -477,8 +506,11 @@ const Cart = () => {
               <div className="space-y-1 text-sm">
                 {cartItems.map(item => (
                   <div key={item.id} className="flex justify-between text-muted-foreground">
-                    <span>{item.product.name} x {item.quantity}</span>
-                    <span>{formatPrice(item.product.price * item.quantity)}</span>
+                    <span>
+                      {item.product.name}
+                      {item.variant && ` (${item.variant.weight}g)`} x {item.quantity}
+                    </span>
+                    <span>{formatPrice(getItemPrice(item) * item.quantity)}</span>
                   </div>
                 ))}
                 <div className="border-t pt-2 mt-2">

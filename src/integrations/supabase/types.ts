@@ -20,18 +20,21 @@ export type Database = {
           id: string
           product_id: string | null
           quantity: number
+          variant_id: string | null
         }
         Insert: {
           cart_id?: string | null
           id?: string
           product_id?: string | null
           quantity: number
+          variant_id?: string | null
         }
         Update: {
           cart_id?: string | null
           id?: string
           product_id?: string | null
           quantity?: number
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -46,6 +49,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]
