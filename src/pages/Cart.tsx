@@ -3,10 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, CreditCard, Wallet, Banknote, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 interface CartItem {
   id: string;
@@ -27,14 +38,39 @@ const Cart = () => {
   const { toast } = useToast();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
+  const [processingCheckout, setProcessingCheckout] = useState(false);
+  const [userProfile, setUserProfile] = useState<{
+    phone_number: string | null;
+    address: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchCartItems();
+      fetchUserProfile();
     } else {
       navigate('/auth');
     }
   }, [user, navigate]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('phone_number, address')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const fetchCartItems = async () => {
     if (!user) return;
@@ -142,6 +178,100 @@ const Cart = () => {
 
   const calculateTotal = () => {
     return cartItems.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+  };
+
+  const handleCheckoutClick = () => {
+    // Check if user has phone number and address
+    if (!userProfile?.phone_number || !userProfile?.address) {
+      toast({
+        title: "Profil Belum Lengkap",
+        description: "Silakan lengkapi nomor telepon dan alamat di halaman profil terlebih dahulu.",
+        variant: "destructive",
+        action: (
+          <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>
+            Ke Profil
+          </Button>
+        ),
+      });
+      return;
+    }
+    setCheckoutDialogOpen(true);
+  };
+
+  const handleConfirmCheckout = async () => {
+    if (!paymentMethod) {
+      toast({
+        title: "Pilih Metode Pembayaran",
+        description: "Silakan pilih metode pembayaran terlebih dahulu.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessingCheckout(true);
+    try {
+      // Create order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user?.id,
+          total_price: calculateTotal(),
+          payment_method: paymentMethod,
+          shipping_address: userProfile?.address,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = cartItems.map(item => ({
+        order_id: orderData.id,
+        product_id: item.product.id,
+        quantity: item.quantity,
+        price_at_purchase: item.product.price
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // Get cart to delete items
+      const { data: cart } = await supabase
+        .from('carts')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (cart) {
+        // Delete cart items
+        await supabase
+          .from('cart_items')
+          .delete()
+          .eq('cart_id', cart.id);
+      }
+
+      toast({
+        title: "Pesanan Berhasil Dibuat",
+        description: "Terima kasih atas pesanan Anda! Kami akan segera memprosesnya.",
+      });
+
+      setCheckoutDialogOpen(false);
+      setPaymentMethod('');
+      navigate('/profile');
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Error",
+        description: "Gagal membuat pesanan. Silakan coba lagi.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingCheckout(false);
+    }
   };
 
   if (loading) {
@@ -294,12 +424,7 @@ const Cart = () => {
                 className="w-full"
                 size="lg"
                 variant="hero"
-                onClick={() => {
-                  toast({
-                    title: "Fitur Segera Hadir",
-                    description: "Checkout akan segera tersedia.",
-                  });
-                }}
+                onClick={handleCheckoutClick}
               >
                 Lanjut ke Checkout
               </Button>
@@ -315,6 +440,129 @@ const Cart = () => {
           </div>
         </div>
       </div>
+
+      {/* Checkout Dialog */}
+      <Dialog open={checkoutDialogOpen} onOpenChange={setCheckoutDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl">Checkout</DialogTitle>
+            <DialogDescription>
+              Pilih metode pembayaran untuk menyelesaikan pesanan Anda.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Profile Info */}
+            <Card className="p-4 bg-muted/50">
+              <h3 className="font-semibold mb-3 text-sm">Informasi Pengiriman</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nama:</span>
+                  <span className="font-medium">{user?.email?.split('@')[0]}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Telepon:</span>
+                  <span className="font-medium">{userProfile?.phone_number}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground">Alamat:</span>
+                  <span className="font-medium text-right">{userProfile?.address}</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Order Summary */}
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm">Ringkasan Pesanan</h3>
+              <div className="space-y-1 text-sm">
+                {cartItems.map(item => (
+                  <div key={item.id} className="flex justify-between text-muted-foreground">
+                    <span>{item.product.name} x {item.quantity}</span>
+                    <span>{formatPrice(item.product.price * item.quantity)}</span>
+                  </div>
+                ))}
+                <div className="border-t pt-2 mt-2">
+                  <div className="flex justify-between font-bold text-base">
+                    <span>Total</span>
+                    <span className="text-primary">{formatPrice(calculateTotal())}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Methods */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm">Metode Pembayaran</h3>
+              <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-3 border rounded-lg p-3 hover:bg-muted/50 cursor-pointer">
+                    <RadioGroupItem value="bank_transfer" id="bank_transfer" />
+                    <Label htmlFor="bank_transfer" className="flex items-center gap-2 cursor-pointer flex-1">
+                      <CreditCard className="h-5 w-5 text-primary" />
+                      <div className="flex-1">
+                        <div className="font-medium">Transfer Bank</div>
+                        <div className="text-xs text-muted-foreground">BCA, BNI, Mandiri</div>
+                      </div>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-3 border rounded-lg p-3 hover:bg-muted/50 cursor-pointer">
+                    <RadioGroupItem value="e_wallet" id="e_wallet" />
+                    <Label htmlFor="e_wallet" className="flex items-center gap-2 cursor-pointer flex-1">
+                      <Wallet className="h-5 w-5 text-primary" />
+                      <div className="flex-1">
+                        <div className="font-medium">E-Wallet</div>
+                        <div className="text-xs text-muted-foreground">GoPay, OVO, Dana</div>
+                      </div>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-3 border rounded-lg p-3 hover:bg-muted/50 cursor-pointer">
+                    <RadioGroupItem value="cod" id="cod" />
+                    <Label htmlFor="cod" className="flex items-center gap-2 cursor-pointer flex-1">
+                      <Banknote className="h-5 w-5 text-primary" />
+                      <div className="flex-1">
+                        <div className="font-medium">Cash on Delivery</div>
+                        <div className="text-xs text-muted-foreground">Bayar saat barang diterima</div>
+                      </div>
+                    </Label>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Warning if no payment selected */}
+            {!paymentMethod && (
+              <Alert variant="default">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Silakan pilih metode pembayaran untuk melanjutkan.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCheckoutDialogOpen(false);
+                setPaymentMethod('');
+              }}
+              disabled={processingCheckout}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="hero"
+              onClick={handleConfirmCheckout}
+              disabled={!paymentMethod || processingCheckout}
+            >
+              {processingCheckout ? 'Memproses...' : 'Konfirmasi Pesanan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

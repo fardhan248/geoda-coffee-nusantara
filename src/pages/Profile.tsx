@@ -26,11 +26,28 @@ interface UserProfile {
   profile_picture_url: string | null;
 }
 
+interface Order {
+  id: string;
+  total_price: number;
+  status: string;
+  payment_method: string;
+  created_at: string;
+  order_items: {
+    quantity: number;
+    price_at_purchase: number;
+    product: {
+      name: string;
+    };
+  }[];
+}
+
 const Profile = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [formData, setFormData] = useState({
     full_name: '',
     phone_number: '',
@@ -50,8 +67,39 @@ const Profile = () => {
   useEffect(() => {
     if (user) {
       fetchProfile();
+      fetchOrders();
     }
   }, [user]);
+
+  const fetchOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          total_price,
+          status,
+          payment_method,
+          created_at,
+          order_items (
+            quantity,
+            price_at_purchase,
+            product:products (
+              name
+            )
+          )
+        `)
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setOrders(data as any || []);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -141,6 +189,50 @@ const Profile = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<string, { label: string; className: string }> = {
+      pending: { label: 'Menunggu', className: 'bg-yellow-100 text-yellow-800' },
+      processing: { label: 'Diproses', className: 'bg-blue-100 text-blue-800' },
+      shipped: { label: 'Dikirim', className: 'bg-purple-100 text-purple-800' },
+      delivered: { label: 'Diterima', className: 'bg-green-100 text-green-800' },
+      cancelled: { label: 'Dibatalkan', className: 'bg-red-100 text-red-800' },
+    };
+
+    const config = statusConfig[status] || statusConfig.pending;
+    return (
+      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${config.className}`}>
+        {config.label}
+      </span>
+    );
+  };
+
+  const getPaymentMethodLabel = (method: string) => {
+    const labels: Record<string, string> = {
+      bank_transfer: 'Transfer Bank',
+      e_wallet: 'E-Wallet',
+      cod: 'Cash on Delivery',
+    };
+    return labels[method] || method;
   };
 
   if (authLoading || loading) {
@@ -299,16 +391,72 @@ const Profile = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Belum ada pesanan</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Anda belum memiliki riwayat pesanan. Mulai berbelanja sekarang!
-                  </p>
-                  <Button variant="hero" onClick={() => navigate('/shop')}>
-                    Mulai Belanja
-                  </Button>
-                </div>
+                {ordersLoading ? (
+                  <div className="text-center py-12">
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Memuat pesanan...</p>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Belum ada pesanan</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Anda belum memiliki riwayat pesanan. Mulai berbelanja sekarang!
+                    </p>
+                    <Button variant="hero" onClick={() => navigate('/shop')}>
+                      Mulai Belanja
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {orders.map((order) => (
+                      <Card key={order.id} className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold">Pesanan #{order.id.slice(0, 8)}</h3>
+                                {getStatusBadge(order.status)}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {formatDate(order.created_at)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground mb-1">Total</p>
+                              <p className="font-bold text-lg text-primary">
+                                {formatPrice(order.total_price)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="border-t pt-3">
+                            <p className="text-sm text-muted-foreground mb-2">Produk:</p>
+                            <div className="space-y-1">
+                              {order.order_items.map((item, idx) => (
+                                <div key={idx} className="flex justify-between text-sm">
+                                  <span>{item.product.name} x {item.quantity}</span>
+                                  <span className="text-muted-foreground">
+                                    {formatPrice(item.price_at_purchase * item.quantity)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="border-t pt-3">
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">Metode Pembayaran: </span>
+                              <span className="font-medium">
+                                {getPaymentMethodLabel(order.payment_method)}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
